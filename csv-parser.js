@@ -2,31 +2,6 @@ var fs  = require('fs');
 var jp  = require('jsonpath');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
-// var cities = [
-//     { name: "London", "population": 8615246 },
-//     { name: "Berlin", "population": 3517424 },
-//     { name: "Madrid", "population": 3165235 },
-//     { name: "Rome",   "population": 2870528 }
-//   ];
-  
-// var names = jp.query(cities, '$..name');
-
-// console.log(names);
-
-let csvColumnHeaders = [
-    'ID',
-    'Category',
-    'Name',
-    'Documents',
-    'Eligibility',
-    'Hours',
-    'Location',
-    'Latitude',
-    'Longitude',
-    'Phone',
-    'Service Description'
-]
-
 const csvWriter = createCsvWriter({
     path: './test_file.csv',
     header: [
@@ -75,9 +50,6 @@ const getPhoneNumbers = (site) => {
     if (stphone != []) {
         phoneNumbers.push(...stphone);
     }
-    if (phoneNumbers.length > 0 ) {
-        phoneNumbers.join('/r/n');
-    } 
     return (phoneNumbers.length > 0 ? phoneNumbers.join('\r\n') : phoneNumbers.join(''));
 }
 
@@ -151,43 +123,11 @@ sampleFile.forEach(element => {
             }
         );
 
-        console.log(name);
-        console.log(category);
-        console.log(latitude);
-        console.log(longitude);
-        // console.log(siteInfo);
-        console.log(service_description);
-        console.log(hours);
-        console.log(documents);
-        console.log(eligibility);
-        console.log(phone);
-        console.log(location);
         rowId++;
     }
 });
-console.log(rowId);
+
 csvWriter.writeRecords(rows)       // returns a promise
     .then(() => {
         console.log('File Written!');
     });
-
-/* 
-
-Look into pulling services as sometimes the phone number might be buried within, ala:
-
-"services": [{
-        "email": "",
-        "filters": "",
-        "id": "87774",
-        "name": "Food Pantries",
-        "note1": "Call ahead for pick up (614)638-3963",
-        "note2": "",
-        "phones": [{
-          "phone": "(614) 638-3963 Program Number Call ahead for pick up",
-          "type": "ss"
-        }],
-        "refer": "1",
-        "url": ""
-      }],
-
-*/
