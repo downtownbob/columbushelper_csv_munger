@@ -1,0 +1,1 @@
+This was made in a few hours with JSONPath and csv-writer to pull information from a giant SmartOS JSON file into a CSV, to be munged with other CSVs.
