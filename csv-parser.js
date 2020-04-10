@@ -1,5 +1,5 @@
-var fs  = require('fs');
-var jp  = require('jsonpath');
+const fs  = require('fs');
+const jp  = require('jsonpath');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 const csvWriter = createCsvWriter({
@@ -72,24 +72,9 @@ const getSiteInfo = (data) => {
     return jp.query(data, '$..site_info');
 }
 
-const getServiceDescription = (site_info) => {
-    var [site_description, ] = jp.query(site_info, '$..detailtext[?(@.label=="Service Description")].text');
-    return site_description;
-}
-
-const getHours = (site_info) => {
-    var [hours, ] = jp.query(site_info, '$..detailtext[?(@.label=="Hours")].text');
-    return hours;
-}
-
-const getDocuments = (site_info) => {
-    var [documents, ] = jp.query(site_info, '$..detailtext[?(@.label=="Documents")].text');
-    return documents;
-}
-
-const getEligibility = (site_info) => {
-    var [eligibility, ] = jp.query(site_info, '$..detailtext[?(@.label=="Eligibility")].text');
-    return eligibility;
+const getSiteInfoElement = (site_info, element_name) => {
+    var [element, ] = jp.query(site_info, '$..detailtext[?(@.label=="' + element_name + '")].text');
+    return element;
 }
 
 sampleFile.forEach(element => {
@@ -100,10 +85,10 @@ sampleFile.forEach(element => {
         var siteInfo = getSiteInfo(element);
         var latitude = getLatitude(site);
         var longitude = getlongitude(site);
-        var service_description = getServiceDescription(siteInfo);
-        var hours = getHours(siteInfo);
-        var documents = getDocuments(siteInfo);
-        var eligibility = getEligibility(siteInfo);
+        var service_description = getSiteInfoElement(siteInfo, "Service Description");
+        var hours = getSiteInfoElement(siteInfo, "Hours");
+        var documents = getSiteInfoElement(siteInfo, "Documents");
+        var eligibility = getSiteInfoElement(siteInfo, "Eligibility");
         var phone = getPhoneNumbers(site);
         var location = getAddress(site);
         
