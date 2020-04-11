@@ -1,6 +1,7 @@
 const fs  = require('fs');
 const jp  = require('jsonpath');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const csvParser = require('csv-parse/lib/sync');
 
 const csvWriter = createCsvWriter({
     path: './test_file.csv',
@@ -20,97 +21,160 @@ const csvWriter = createCsvWriter({
 });
 
 let rows = [];
+let rowId = 1;
 
-let sampleFile = JSON.parse(fs.readFileSync('./pantry.json'));
-
-let foodServiceNames = ["Food Banks/Food Distribution Warehouses", "Food Pantries", "Food Pantries * Veterans", "Soup Kitchens"]
-var rowId = 1;
-
-const getSite = (data) => {
-    return jp.query(data, '$..site');
-}
-
-const getLatitude = (site) => {
-    var [latitude, ] = jp.query(site, '$..latitude');
-    return latitude;
-}
-
-const getlongitude = (site) => {
-    var [longitude, ] = jp.query(site, '$..longitude');
-    return longitude;
-}
-
-const getPhoneNumbers = (site) => {
-    let phoneNumbers = [];
-    let stgphones = jp.query(site, '$..stgphones..phone');
-    let stphone = jp.query(site, '$..stphones..phone');
-    if (stgphones != []) {
-        phoneNumbers.push(...stgphones);
+const parseSmartColumbusJSON = (fileLocation) => {
+    
+    let sampleFile = JSON.parse(fs.readFileSync(fileLocation));
+    let foodServiceNames = ["Food Banks/Food Distribution Warehouses", "Food Pantries", "Food Pantries * Veterans", "Soup Kitchens", "Community Meals", "Food Donation Programs", ]
+    
+    const getSite = (data) => {
+        return jp.query(data, '$..site');
     }
-    if (stphone != []) {
-        phoneNumbers.push(...stphone);
+    
+    const getLatitude = (site) => {
+        let [latitude, ] = jp.query(site, '$..latitude');
+        return latitude;
     }
-    return (phoneNumbers.length > 0 ? phoneNumbers.join('\r\n') : phoneNumbers.join(''));
+    
+    const getlongitude = (site) => {
+        let [longitude, ] = jp.query(site, '$..longitude');
+        return longitude;
+    }
+    
+    const getPhoneNumbers = (site) => {
+        let phoneNumbers = [];
+        let stgphones = jp.query(site, '$..stgphones..phone');
+        let stphone = jp.query(site, '$..stphones..phone');
+        if (stgphones != []) {
+            phoneNumbers.push(...stgphones);
+        }
+        if (stphone != []) {
+            phoneNumbers.push(...stphone);
+        }
+        return (phoneNumbers.length > 0 ? phoneNumbers.join('\r\n') : phoneNumbers.join(''));
+    }
+    
+    const getAddress = (site) => {
+        let [city, ] = jp.query(site, '$..address..city')
+        let [line1, ] = jp.query(site, '$..address..line1');
+        let [line2, ] = jp.query(site, '$..address..line2');
+        let [line3, ] = jp.query(site, '$..address..line3');
+        let [state, ] = jp.query(site, '$..address..state');
+        let [zip, ] = jp.query(site, '$..address..zip');
+    
+        // Nice spacing things.
+        line1 = (line2 != '' ? line1 + ' ' : line1);
+        line2 = (line3 != '' ? line2 + ' ' : line2);
+    
+        return line1 + line2 + line3 + ', ' + city + ' ' + state + ' ' + zip;
+    }
+    
+    const getSiteInfo = (data) => {
+        return jp.query(data, '$..site_info');
+    }
+    
+    const getSiteInfoElement = (site_info, element_name) => {
+        let [element, ] = jp.query(site_info, '$..detailtext[?(@.label=="' + element_name + '")].text');
+        return element;
+    }
+
+    sampleFile.forEach(element => {
+        let [category, ] = jp.query(element, '$..taxonomy.service_name');
+        if (foodServiceNames.includes(category)) {
+            let name = element.provider_name;
+            let site = getSite(element);
+            let siteInfo = getSiteInfo(element);
+            let latitude = getLatitude(site);
+            let longitude = getlongitude(site);
+            let service_description = getSiteInfoElement(siteInfo, "Service Description");
+            let hours = getSiteInfoElement(siteInfo, "Hours");
+            let documents = getSiteInfoElement(siteInfo, "Documents");
+            let eligibility = getSiteInfoElement(siteInfo, "Eligibility");
+            let phone = getPhoneNumbers(site);
+            let location = getAddress(site);
+            
+            rows.push(
+                {
+                    id: rowId,
+                    category: category,
+                    name: name,
+                    documents: documents,
+                    eligibility: eligibility,
+                    hours: hours,
+                    location: location,
+                    latitude: latitude,
+                    longitude: longitude,
+                    phone: phone,
+                    service_description: service_description
+                }
+            );
+    
+            rowId++;
+        }
+    });
 }
 
-const getAddress = (site) => {
-    var [city, ] = jp.query(site, '$..address..city')
-    var [line1, ] = jp.query(site, '$..address..line1');
-    var [line2, ] = jp.query(site, '$..address..line2');
-    var [line3, ] = jp.query(site, '$..address..line3');
-    var [state, ] = jp.query(site, '$..address..state');
-    var [zip, ] = jp.query(site, '$..address..zip');
 
-    // Nice spacing things.
-    line1 = (line2 != '' ? line1 + ' ' : line1);
-    line2 = (line3 != '' ? line2 + ' ' : line2);
+const parseHscCsv = (fileLocation) => {
+    const csv = fs.readFileSync(fileLocation);
+    let parsedCSV = csvParser(csv, {
+        columns: true,
+        skip_empty_lines: true
+      });
 
-    return line1 + line2 + line3 + ', ' + city + ' ' + state + ' ' + zip;
-}
-
-const getSiteInfo = (data) => {
-    return jp.query(data, '$..site_info');
-}
-
-const getSiteInfoElement = (site_info, element_name) => {
-    var [element, ] = jp.query(site_info, '$..detailtext[?(@.label=="' + element_name + '")].text');
-    return element;
-}
-
-sampleFile.forEach(element => {
-    var [category, ] = jp.query(element, '$..taxonomy.service_name');
-    if (foodServiceNames.includes(category)) {
-        var name = element.provider_name;
-        var site = getSite(element);
-        var siteInfo = getSiteInfo(element);
-        var latitude = getLatitude(site);
-        var longitude = getlongitude(site);
-        var service_description = getSiteInfoElement(siteInfo, "Service Description");
-        var hours = getSiteInfoElement(siteInfo, "Hours");
-        var documents = getSiteInfoElement(siteInfo, "Documents");
-        var eligibility = getSiteInfoElement(siteInfo, "Eligibility");
-        var phone = getPhoneNumbers(site);
-        var location = getAddress(site);
-        
+    parsedCSV.forEach(data => {
         rows.push(
             {
                 id: rowId,
-                category: category,
-                name: name,
-                documents: documents,
-                eligibility: eligibility,
-                hours: hours,
-                location: location,
-                latitude: latitude,
-                longitude: longitude,
-                phone: phone,
-                service_description: service_description
+                category: null,
+                name: data["Name"],
+                documents: null,
+                eligibility: null,
+                hours: null,
+                location: null,
+                latitude: data["Latitude"],
+                longitude: data["Longitude"],
+                phone: null,
+                service_description: data["Description"]
             }
-        );
-
+        )
         rowId++;
-    }
-});
+    });
+}
+
+const parseCOVIDCsv = (fileLocation) => {
+    const csv = fs.readFileSync(fileLocation);
+    let parsedCSV = csvParser(csv, {
+        columns: true,
+        skip_empty_lines: true
+      });
+
+    parsedCSV.forEach(data => {
+        rows.push(
+            {
+                id: rowId,
+                category: data["Category"],
+                name: data["Name"],
+                documents: data["Documents"],
+                eligibility: data["Eligibility"],
+                hours: data["Hours"],
+                location: data["Location"],
+                latitude: data["Latitude"],
+                longitude: data["Longitude"],
+                phone: data["Phone"],
+                service_description: data["Service Description"]
+            }
+        )
+        rowId++;
+    });
+}
+
+parseCOVIDCsv('./covid19_resources2.csv')
+
+parseSmartColumbusJSON('./pantry.json');
+
+parseHscCsv('./hsc.csv');
 
 csvWriter.writeRecords(rows)       // returns a promise
     .then(() => {
