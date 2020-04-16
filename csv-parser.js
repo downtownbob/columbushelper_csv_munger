@@ -2,6 +2,8 @@ const fs  = require('fs');
 const jp  = require('jsonpath');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csvParser = require('csv-parse/lib/sync');
+const dedupe = require('dedupe');
+
 
 const csvWriter = createCsvWriter({
     path: './test_file.csv',
@@ -176,7 +178,24 @@ parseSmartColumbusJSON('./pantry.json');
 
 parseHscCsv('./hsc.csv');
 
-csvWriter.writeRecords(rows)       // returns a promise
+// Use a custom hash to look for exact duplicates and remove them - examine all fields but the id
+console.log("before dedupe rows " + rows.length);
+rows = dedupe(rows, value => [
+    value.name,
+    value.location,
+    value.latitude,
+    value.longitude,
+    value.service_description,
+    value.documents,
+    value.hours,
+    value.phone,
+    value.eligibility,
+    value.category
+]);
+console.log("after dedupe rows " + rows.length);
+
+
+csvWriter.writeRecords(rows)
     .then(() => {
         console.log('File Written!');
     });
